@@ -12,6 +12,17 @@
     <script defer src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
   </head>
   <body>
+    <header class="topbar" style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);background:rgba(23,26,46,0.6);backdrop-filter:blur(8px)">
+      <div class="brand" style="font-weight:700">PyStart</div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <select id="lang-select-top" class="ghost" style="padding:6px 10px"></select>
+        <div id="top-user" style="display:flex;align-items:center;gap:8px">
+          <img id="top-avatar" alt="" style="width:28px;height:28px;border-radius:50%;border:1px solid var(--border);object-fit:cover;display:block" />
+          <span id="top-display" style="font-weight:600">Guest</span>
+          <button id="top-logout" class="ghost small">Logout</button>
+        </div>
+      </div>
+    </header>
     <div id="app">
       <aside class="sidebar">
         <div class="brand">PyStart</div>
@@ -50,6 +61,7 @@
             <aside class="lessons-list">
               <div class="list-header">
                 <h2 data-i18n="ui.lessons">Lessons</h2>
+                <input id="lesson-search" type="text" placeholder="Search..." style="flex:1;margin-left:auto;max-width:180px" />
               </div>
               <ul id="lessons"></ul>
             </aside>
@@ -229,7 +241,12 @@
         </section>
       </main>
     </div>
-
+    <footer class="statusbar" style="position:fixed;left:0;right:0;bottom:0;padding:6px 12px;border-top:1px solid var(--border);background:rgba(23,26,46,0.6);backdrop-filter:blur(8px);display:flex;gap:14px;align-items:center;color:var(--muted);font-size:12px">
+      <span>v0.1</span>
+      <span>Socket: <span id="sock-status">—</span></span>
+      <span>Latency: <span id="sock-latency">—</span> ms</span>
+    </footer>
+    
     <script src="/static/app.js" defer></script>
   </body>
 </html>

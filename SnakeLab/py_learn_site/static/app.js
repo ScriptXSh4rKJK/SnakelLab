@@ -109,6 +109,32 @@ async function ensureAuth(){
   return true;
 }
 
+// Tabs: Theory / Practice
+function setupLessonTabs(){
+  const the = document.getElementById('theory');
+  const pra = document.getElementById('practice');
+  const btns = document.querySelectorAll('.lesson-header .tab');
+  if(!the || !pra || !btns.length) return;
+  btns.forEach(btn => {
+    if(btn._bound) return;
+    btn._bound = true;
+    btn.addEventListener('click', ()=>{
+      btns.forEach(b=> b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.getAttribute('data-tab');
+      if(tab === 'theory'){
+        the.classList.add('active');
+        pra.classList.remove('active');
+        renderLesson();
+      } else {
+        the.classList.remove('active');
+        pra.classList.add('active');
+        renderPractice();
+      }
+    });
+  });
+}
+
 // Compare outputs ignoring case, punctuation and extra spaces
 function normalizeOutput(s){
   return String(s || '')
@@ -151,9 +177,30 @@ async function setupI18n() {
   });
   translatePage();
   populateLangSelect();
+  // sync topbar language select
+  const top = document.getElementById('lang-select-top');
+  const side = document.getElementById('lang-select');
+  if(top){
+    // populate
+    supportedLangs.forEach(l=>{
+      const o = document.createElement('option'); o.value=l; o.textContent=l.toUpperCase();
+      if(i18next.language===l) o.selected=true; top.appendChild(o);
+    });
+    top.addEventListener('change', ()=>{
+      const target = top.value; try{ localStorage.setItem('lang', target); }catch{}
+      i18next.changeLanguage(target).then(()=>{
+        translatePage(); currentLessonIndex=0; currentTaskIndex=0; setupLessons();
+        if(side) side.value = i18next.language.slice(0,2);
+      });
+    });
+  }
 }
 
 function detectLanguage(){
+  try {
+    const saved = localStorage.getItem('lang');
+    if (saved && supportedLangs.includes(saved)) return saved;
+  } catch {}
   const nav = navigator.language?.slice(0,2) || "en";
   return supportedLangs.includes(nav) ? nav : "en";
 }
@@ -175,6 +222,7 @@ function populateLangSelect(){
   });
   select.addEventListener("change", () => {
     const target = select.value;
+    try { localStorage.setItem('lang', target); } catch {}
     i18next.changeLanguage(target).then(() => {
       translatePage();
       // Re-render lessons to match language without reload
@@ -184,6 +232,11 @@ function populateLangSelect(){
       select.value = i18next.language.slice(0,2);
     });
   });
+  // If there is a saved language, ensure the select shows it even before change
+  try {
+    const saved = localStorage.getItem('lang');
+    if (saved && supportedLangs.includes(saved)) select.value = saved;
+  } catch {}
 }
 
 // Navigation
@@ -373,6 +426,10 @@ function setupChat(){
   socket.on("connect", () => {
     const me = currentIdentity() || { username: "guest", display: "Guest" };
     socket.emit("join", { username: me.username, display: me.display, avatar: me.avatar });
+    updateSockStatus('online');
+  });
+  socket.on("disconnect", () => {
+    showToast("Disconnected"); updateSockStatus('offline');
   });
   // history first
   socket.on("history", (arr)=>{
@@ -716,195 +773,6 @@ function getLessons(){
         { text: "Импортируй math и выведи корень из 16", starter: "import math\nprint(math.sqrt(16))\n", check: async (p)=> (await runAndCapture(p, "import math\nprint(math.sqrt(16))\n")).trim()==='4.0' }
       ]
     }
-    ,
-    {
-      id: 'osint-intro',
-      title: 'OSINT — вступление (этика и правила)',
-      theory: `
-        <div class="card">
-          <h2>Важно: используйте только в добрых целях</h2>
-          <p>OSINT (разведка по открытым источникам) — это поиск и анализ <b>публично доступной</b> информации.
-          Материал предназначен <b>для обучения и этичного применения</b>: исследование безопасности,
-          журналистика, проверка фактов, OSINT‑расследования, защита бренда и репутации.</p>
-          <h3>Этичные принципы</h3>
-          <ul>
-            <li>Никаких взломов, обхода ограничений и нарушения приватности.</li>
-            <li>Соблюдайте законы и правила площадок (ToS).</li>
-            <li>Проверяйте источники, не распространяйте личные данные без оснований.</li>
-            <li>Отделяйте факты от предположений, фиксируйте дату/время/ссылки.</li>
-          </ul>
-          <h3>Рабочий процесс</h3>
-          <ol>
-            <li>Формулировка запроса (что именно ищем?)</li>
-            <li>Сбор из открытых источников (поиск, каталоги, открытые API)</li>
-            <li>Нормализация и парсинг (URL, текст, метаданные)</li>
-            <li>Верификация из нескольких независимых источников</li>
-            <li>Отчёт: кратко, с фактами и ссылками</li>
-          </ol>
-          <p>Если вы планируете использовать знания во вред — не продолжайте. Вы несёте личную ответственность.</p>
-        </div>
-      `,
-      tasks: [
-        {
-          text: "Подтверди, что будешь использовать знания этично: выведи слово agree",
-          starter: "# Напиши ниже печать подтверждения\nprint('agree')\n",
-          check: async (p)=> (await runAndCapture(p, "print('agree')\n")).trim()==='agree'
-        }
-      ]
-    },
-    {
-      id: 'osint-search',
-      title: 'OSINT‑1: Поисковые операторы',
-      theory: `
-        <div class="card">
-          <h2>Точнее формулируем запрос</h2>
-          <ul>
-            <li><code>site:example.com</code> — искать только на домене</li>
-            <li><code>filetype:pdf</code> — искать файлы заданного типа</li>
-            <li><code>"точная фраза"</code> — точное совпадение</li>
-            <li><code>-слово</code> — исключить слово</li>
-            <li><code>OR</code> — логическое ИЛИ</li>
-          </ul>
-          <h3>Подсказки</h3>
-          <ul>
-            <li>Скобки группируют: <code>("отчёт" OR "report") site:example.org</code></li>
-            <li>Поиск по заголовку: <code>intitle:"security report"</code></li>
-            <li>Поиск по тексту страницы: <code>intext:"vulnerability"</code></li>
-          </ul>
-          <p>Комбинируйте несколько операторов, чтобы уменьшить шум и быстрее найти нужное.</p>
-        </div>
-      `,
-      tasks: [
-        {
-          text: 'Сформируй запрос для PDF на example.org с фразой "security report"',
-          starter: "# Впиши итоговый запрос в переменную query\nquery = ''\n",
-          check: async (p)=>{
-            const out = (await runAndCapture(p, 'print(query)')).trim().toLowerCase();
-            return out.includes('site:example.org') && out.includes('filetype:pdf') && out.includes('security report');
-          }
-        },
-        {
-          text: 'Добавь исключения: draft и beta',
-          starter: "query = 'site:example.org filetype:pdf \"security report\"'\n# дополни минус-словами\n",
-          check: async (p)=>{
-            const out = (await runAndCapture(p, 'print(query)')).trim().toLowerCase();
-            return out.includes('-draft') && out.includes('-beta');
-          }
-        }
-      ]
-    },
-    {
-      id: 'osint-urls',
-      title: 'OSINT‑2: Разбор URL',
-      theory: `
-        <div class="card">
-          <h2>Из чего состоит URL</h2>
-          <pre>https://sub.example.com/path?query=value#frag</pre>
-          <ul>
-            <li><b>Схема</b>: http/https</li>
-            <li><b>Хост</b>: sub.example.com</li>
-            <li><b>Путь</b>: /path</li>
-            <li><b>Параметры</b>: query=value (могут быть закодированы)</li>
-            <li><b>Якорь</b>: #frag</li>
-          </ul>
-          <p>UTM‑метки (utm_source и др.) — для аналитики; base64‑параметры иногда скрывают полезный текст.</p>
-        </div>
-      `,
-      tasks: [
-        {
-          text: 'Верни домен второго уровня из https://sub.example.com/page → example.com',
-          starter: "def get_domain(url):\n    # твой код\n    return 'example.com'\n\nprint(get_domain('https://sub.example.com/page'))\n",
-          check: async (p)=> (await runAndCapture(p, "print(get_domain('https://sub.example.com/page'))\n")).trim()==='example.com'
-        },
-        {
-          text: 'Декодируй base64 параметр q из ?q=SGVsbG8%3D → Hello',
-          starter: "import base64, urllib.parse as up\n\ndef decode_q(url):\n    # твой код\n    return 'Hello'\n\nprint(decode_q('?q=SGVsbG8%3D'))\n",
-          check: async (p)=> (await runAndCapture(p, "print(decode_q('?q=SGVsbG8%3D'))\n")).trim()==='Hello'
-        }
-      ]
-    },
-    {
-      id: 'osint-contacts',
-      title: 'OSINT‑3: Поиск контактов',
-      theory: `
-        <div class="card">
-          <h2>Ищем e‑mail и Telegram</h2>
-          <p>Регулярные выражения помогают быстро вытащить контакты из текста. Старайтесь убирать дубликаты и приводить формат к единому виду.</p>
-          <h3>Советы</h3>
-          <ul>
-            <li>Сначала соберите максимум кандидатов, потом фильтруйте.</li>
-            <li>Используйте <code>set()</code> для удаления повторов.</li>
-            <li>Нормализуйте регистр и формат перед сравнением.</li>
-          </ul>
-        </div>
-      `,
-      tasks: [
-        {
-          text: 'Найди все e‑mail в тексте и выведи по одному на строку',
-          starter: "import re\ntext='''\\nEmail: user@example.com \\nSupport: support@company.com\n'''\nemails = re.findall(r'[A-Za-z0-9_.+-]+@[A-Za-z0-9-]+\\.[A-Za-z0-9-.]{2,}', text)\nfor e in sorted(set(emails)):\n    print(e)\n",
-          check: async (p)=>{
-            const out = (await runAndCapture(p, "print('OK')\n"));
-            // Проверка через глобальный вывод из starter выше не сработает напрямую,
-            // поэтому делаем простую проверку запуска (стартовый код печатает список сам)
-            return true;
-          }
-        },
-        {
-          text: 'Нормализуй Telegram-ссылки к виду @username',
-          starter: "def norm(link):\n    # твой код\n    return '@username'\n\nprint(norm('https://t.me/username'))\nprint(norm('@username'))\nprint(norm('tg://resolve?domain=username'))\n",
-          check: async (p)=>{
-            const a = (await runAndCapture(p, "print(norm('https://t.me/username'))\n")).trim();
-            const b = (await runAndCapture(p, "print(norm('@username'))\n")).trim();
-            const c = (await runAndCapture(p, "print(norm('tg://resolve?domain=username'))\n")).trim();
-            return a==='@username' && b==='@username' && c==='@username';
-          }
-        }
-      ]
-    }
-    ,
-    {
-      id: 'first-cli',
-      title: 'Мини‑проект: свой первый софт (CLI)',
-      theory: `
-        <div class="card">
-          <h2>Как написать свой первый софт</h2>
-          <ol>
-            <li><b>Идея</b>: что программа делает за 1–2 шага?</li>
-            <li><b>Ввод → Обработка → Вывод</b>: определите формат входных данных и результата.</li>
-            <li><b>Функции</b>: разбейте на маленькие функции с понятными именами.</li>
-            <li><b>Проверка</b>: тестируйте на примерах, дополняйте кейсы.</li>
-          </ol>
-          <h3>Структура файла</h3>
-          <pre># cli.py (в реальном проекте)
-def run(cmd: str):
-    parts = cmd.strip().split()
-    # ... парсинг команды
-    # print(...) — вывод результата
-
-if __name__ == "__main__":
-    import sys
-    run(" ".join(sys.argv[1:]))
-          </pre>
-          <p>Здесь, в браузере, мы просто будем вызывать <code>run(…)</code> напрямую.</p>
-        </div>
-      `,
-      tasks: [
-        {
-          text: 'Сделай функцию greet(name), которая возвращает "Привет, NAME!" и выведи приветствие для "Мир"',
-          starter: "def greet(name):\n    # твой код\n    return f'Привет, {name}!'\n\nprint(greet('Мир'))\n",
-          check: async (p)=> (await runAndCapture(p, "def greet(name):\n    return f'Привет, {name}!'\nprint(greet('Мир'))\n")).trim()==='Привет, Мир!'
-        },
-        {
-          text: 'Реализуй мини‑CLI: run(cmd). Поддержи команды: sum a b (сложение) и upper s (в верхний регистр). Проверь примеры ниже.',
-          starter: "def run(cmd: str):\n    parts = cmd.strip().split()\n    # твой код: распознай команду и выведи результат через print\n    if not parts:\n        print('usage: sum a b | upper text')\n        return\n    if parts[0] == 'sum' and len(parts) == 3:\n        a, b = int(parts[1]), int(parts[2])\n        print(a + b)\n    elif parts[0] == 'upper' and len(parts) >= 2:\n        print(' '.join(parts[1:]).upper())\n    else:\n        print('unknown')\n\n# Тесты\nrun('sum 2 3')\nrun('upper hello')\n",
-          check: async (p)=>{
-            const a = (await runAndCapture(p, "run('sum 2 3')\n")).trim();
-            const b = (await runAndCapture(p, "run('upper hello')\n")).trim();
-            return a==='5' && b==='HELLO';
-          }
-        }
-      ]
-    }
   ];
 
   // Spanish (ES) localized lessons
@@ -934,7 +802,7 @@ if __name__ == "__main__":
       theory: `
         <div class="card">
           <h2>Variables: cajitas con nombre</h2>
-          <p><code>name = "Alice"</code>, <code>count = 3</code>. Con f-strings es fácil: <code>print(f"Hello {name}")</code>.</p>
+          <p><code>name = "Alice"</code>, <code>count = 3</code>. Con f-Strings es fácil: <code>print(f"Hello {name}")</code>.</p>
         </div>
       `,
       tasks: [
@@ -974,13 +842,13 @@ if __name__ == "__main__":
         <div class="card">
           <h2>Busca más inteligente</h2>
           <ul>
-            <li><code>site:example.org</code>, <code>filetype:pdf</code>, <code>"frase exacta"</code>, <code>-palabra</code></li>
+            <li><code>site:</code>, <code>filetype:</code>, <code>"frase exacta"</code>, <code>-palabra</code></li>
           </ul>
         </div>
       `,
       tasks: [
-        { text: "PDF en example.org con 'security report'", starter: "query = ''\n", check: async (p)=>{ const out=(await runAndCapture(p,'print(query)')).trim().toLowerCase(); return out.includes('site:example.org') && out.includes('filetype:pdf') && out.includes('security report'); } },
-        { text: "Añade -draft y -beta", starter: "query = 'site:example.org filetype:pdf \"security report\"'\n", check: async (p)=>{ const out=(await runAndCapture(p,'print(query)')).trim().toLowerCase(); return out.includes('-draft')&&out.includes('-beta'); } }
+        { text: 'PDF en example.org con "security report"', starter: "query = ''\n", check: async (p)=>{ const out=(await runAndCapture(p,'print(query)')).trim().toLowerCase(); return out.includes('site:example.org') && out.includes('filetype:pdf') && out.includes('security report'); } },
+        { text: 'Añade -draft y -beta', starter: "query = 'site:example.org filetype:pdf \"security report\"'\n", check: async (p)=>{ const out=(await runAndCapture(p,'print(query)')).trim().toLowerCase(); return out.includes('-draft')&&out.includes('-beta'); } }
       ]
     },
     {
@@ -1356,9 +1224,76 @@ if __name__ == "__main__":
       tasks: [
         { text: "Import math and print sqrt(16)", starter: "import math\nprint(math.sqrt(16))\n", check: async (p)=> (await runAndCapture(p, "import math\nprint(math.sqrt(16))\n")).trim()==='4.0' }
       ]
-    }
+    },
+    {
+      id: 'strings-formatting',
+      title: t('Строки: форматирование', 'Strings: formatting'),
+      theory: t(
+        `<div class="card"><h2>f-строки и формат</h2><p>Склеивать удобно через f"...{x}..."</p></div>`,
+        `<div class="card"><h2>f-strings and format</h2><p>Compose text using f"...{x}..."</p></div>`
+      ),
+      tasks: [
+        { text: t('Скажи: My name is Bob and I am 7', 'Say: My name is Bob and I am 7'), starter: "name='Bob'\nage=7\nprint(f'My name is {name} and I am {age}')\n", check: async (p)=> (await runAndCapture(p, "name='Bob'\nage=7\nprint(f'My name is {name} and I am {age}')\n")).trim()==='My name is Bob and I am 7' }
+      ]
+    },
+    {
+      id: 'list-comprehension',
+      title: t('Списки: генераторы', 'Lists: comprehensions'),
+      theory: t(
+        `<div class="card"><h2>[x*x for x in range(5)]</h2><p>Быстро строим новый список по правилу.</p></div>`,
+        `<div class="card"><h2>[x*x for x in range(5)]</h2><p>Build lists from rules.</p></div>`
+      ),
+      tasks: [
+        { text: t('Сделай квадраты 0..4', 'Make squares 0..4'), starter: "s=[x*x for x in range(5)]\nprint(s)\n", check: async (p)=> (await runAndCapture(p, "s=[x*x for x in range(5)]\nprint(s)\n")).trim()==='[0, 1, 4, 9, 16]' }
+      ]
+    },
+    {
+      id: 'sets-ops',
+      title: t('Множества: операции', 'Sets: operations'),
+      theory: t(
+        `<div class="card"><h2>set</h2><p>Уникальные элементы и быстрые операции: ∪ ∩ −</p></div>`,
+        `<div class="card"><h2>set</h2><p>Unique elements; union/intersection/difference</p></div>`
+      ),
+      tasks: [
+        { text: t('Найди общие элементы', 'Find intersection'), starter: "a={1,2,3}; b={2,3,4}\nprint(a & b)\n", check: async (p)=> (await runAndCapture(p, "a={1,2,3}; b={2,3,4}\nprint(a & b)\n")).trim()==='{2, 3}' }
+      ]
+    },
+    {
+      id: 'dict-comprehension',
+      title: t('Словари: генераторы', 'Dicts: comprehensions'),
+      theory: t(
+        `<div class="card"><h2>{x: x*x for x in range(3)}</h2><p>Строим словарь по правилу.</p></div>`,
+        `<div class="card"><h2>{x: x*x for x in range(3)}</h2><p>Build dict from rule.</p></div>`
+      ),
+      tasks: [
+        { text: t('Сделай квадраты 0..2 в словаре', 'Make squares 0..2 in dict'), starter: "d={x:x*x for x in range(3)}\nprint(d)\n", check: async (p)=> (await runAndCapture(p, "d={x:x*x for x in range(3)}\nprint(d)\n")).trim()==='{0: 0, 1: 1, 2: 4}' }
+      ]
+    },
+    {
+      id: 'functions-args',
+      title: t('Функции: *args и **kwargs', 'Functions: *args and **kwargs'),
+      theory: t(
+        `<div class="card"><h2>*args/**kwargs</h2><p>Принимаем разное число аргументов.</p></div>`,
+        `<div class="card"><h2>*args/**kwargs</h2><p>Accept variable arguments.</p></div>`
+      ),
+      tasks: [
+        { text: t('Сделай joiner(*args) печатает через запятую', 'Make joiner(*args) print comma-separated'), starter: "def joiner(*args):\n    print(','.join(str(x) for x in args))\n\njoiner(1,2,3)\n", check: async (p)=> (await runAndCapture(p, "joiner(1,2,3)\n")).trim()==='1,2,3' }
+      ]
+    },
+    {
+      id: 'classes-intro',
+      title: t('Классы: Введение', 'Classes: Introduction'),
+      theory: t(
+        `<div class="card"><h2>class Robot</h2><p>Свойства и методы: конструктор __init__</p></div>`,
+        `<div class="card"><h2>class Robot</h2><p>Properties and methods: __init__</p></div>`
+      ),
+      tasks: [
+        { text: t('Создай класс Robot(name) и метод hello()', 'Create Robot(name) and hello()'), starter: "class Robot:\n    def __init__(self, name):\n        self.name=name\n    def hello(self):\n        print(f'Hello {self.name}')\n\nr=Robot('Ann')\nr.hello()\n", check: async (p)=> (await runAndCapture(p, "class Robot:\n    def __init__(self, name):\n        self.name=name\n    def hello(self):\n        print(f'Hello {self.name}')\nr=Robot('Ann')\nr.hello()\n")).trim()==='Hello Ann' }
+      ]
+    },
   ];
 }
+
 // Pyodide to run lesson code client-side
 let pyodide;
 async function setupPyodide(){
@@ -1400,7 +1335,7 @@ function fallbackLessons(){
     tasks: [
       {
         text: isRu ? 'Скажи Hello, world!' : 'Say Hello, world!',
-        starter: "print('Hello, world!')\n",
+        starter: "# Напиши ниже печать приветствия\nprint('Hello, world!')\n",
         check: async (p)=> (await runAndCapture(p, "print('Hello, world!')\n")).trim()==='Hello, world!'
       }
     ]
@@ -1590,8 +1525,9 @@ function safeGetLessons(){
 function setupLessons(){
   const list = document.getElementById("lessons");
   list.innerHTML = "";
-  const lessons = safeGetLessons();
-  lessons.forEach((l, i) => {
+  const lessons = safeGetLessons(); if(!lessons.length) return;
+  const ulFrag = document.createDocumentFragment();
+  lessons.forEach((l, idx) => {
     const li = document.createElement("li");
     // progress mark
     const acc = currentIdentity();
@@ -1599,59 +1535,69 @@ function setupLessons(){
     const allDone = done && Object.keys(done).length >= l.tasks.length;
     const count = done ? Object.keys(done).length : 0;
     const badge = allDone ? ' <span class="done-badge">✓</span>' : ` <span class="progress-badge">${count}/${l.tasks.length}</span>`;
-    li.innerHTML = `<button class="lesson-item${allDone?' done':''}" data-idx="${i}">${l.title}${badge}</button>`;
-    list.appendChild(li);
+    li.innerHTML = `<button class="lesson-item${allDone?' done':''}" data-idx="${idx}">${l.title}${badge}</button>`;
+    ulFrag.appendChild(li);
   });
   if(lessons.length === 0){
     // As a final guard, present a clickable fallback so UI stays usable
     const li = document.createElement('li');
     li.innerHTML = `<button class="lesson-item" data-idx="0">${(i18next.language||'en').slice(0,2)==='ru'?'Быстрый старт':'Getting Started'}</button>`;
-    list.appendChild(li);
+    ulFrag.appendChild(li);
   }
+  list.appendChild(ulFrag);
   // trigger staggered appear once when (re)building the list
-  const listWrap = document.querySelector('.lessons-list');
-  if(listWrap){
-    listWrap.classList.remove('appear'); // reset
-    // force reflow to restart the animation
-    void listWrap.offsetWidth;
-    listWrap.classList.add('appear');
-    setTimeout(()=> listWrap.classList.remove('appear'), 600);
-  }
-  list.querySelectorAll(".lesson-item").forEach(btn => btn.addEventListener("click", () => {
-    currentLessonIndex = Number(btn.getAttribute("data-idx"));
-    currentTaskIndex = 0;
-    if(lessons.length){ renderLesson(); }
-    // animate theory on lesson change
-    const tcard = document.querySelector('#theory .card'); if(tcard){ animatePop(tcard); }
-    const pane = document.querySelector('.lesson-pane'); if(pane){ animatePop(pane); }
-  }));
+  list.parentElement.classList.add('appear');
+  // bind clicks to open lessons
+  list.querySelectorAll('.lesson-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const i = parseInt(btn.getAttribute('data-idx')||'0',10);
+      currentLessonIndex = i; currentTaskIndex = 0;
+      renderLesson();
+      renderPractice();
+    });
+  });
+  // render first lesson by default if nothing shown yet
+  if(typeof currentLessonIndex !== 'number' || currentLessonIndex < 0){ currentLessonIndex = 0; }
   renderLesson();
-
-  // tabs
-  document.querySelectorAll(".tabs .tab").forEach(tab => tab.addEventListener("click", () => {
-    document.querySelectorAll(".tabs .tab").forEach(t=>t.classList.remove("active"));
-    tab.classList.add("active");
-    const which = tab.getAttribute("data-tab");
-    document.querySelectorAll(".tab-content").forEach(c=>c.classList.remove("active"));
-    const tgt = document.getElementById(which);
-    tgt.classList.add("active");
-    // animate
-    const card = tgt.querySelector('.card'); if(card){ animatePop(card); }
-    const pane = document.querySelector('.lesson-pane'); if(pane){ animatePop(pane); }
-  }));
-
-  // practice controls
-  document.getElementById("prev-task").addEventListener("click", ()=>{ changeTask(-1); });
-  document.getElementById("next-task").addEventListener("click", ()=>{ changeTask(1); });
-  document.getElementById("check").addEventListener("click", checkTask);
+  renderPractice();
 }
 
-function changeTask(delta){
-  const lessons = safeGetLessons(); if(!lessons.length) return;
-  const tasks = lessons[currentLessonIndex].tasks;
-  currentTaskIndex = Math.max(0, Math.min(tasks.length-1, currentTaskIndex + delta));
-  renderPractice();
-  const pane = document.querySelector('.lesson-pane'); if(pane){ animatePop(pane); }
+function setupLessonSearch(){
+  const input = document.getElementById('lesson-search');
+  if(!input) return;
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    const items = document.querySelectorAll('#lessons .lesson-item');
+    items.forEach((btn) => {
+      const text = btn.textContent.toLowerCase();
+      const match = !q || text.includes(q);
+      btn.parentElement.style.display = match ? '' : 'none';
+      if(q){
+        const raw = btn.textContent;
+        const idx = raw.toLowerCase().indexOf(q);
+        if(idx>=0){
+          const hi = raw.substring(0,idx) + '<mark>'+ raw.substring(idx, idx+q.length) + '</mark>' + raw.substring(idx+q.length);
+          btn.innerHTML = hi;
+        } else {
+          btn.textContent = raw; // safe fallback
+        }
+      } else {
+        // rebuild label from data
+        const i = parseInt(btn.getAttribute('data-idx')||'0',10);
+        const all = safeGetLessons();
+        // preserve badge markup
+        const l = all[i];
+        if(l){
+          const acc = currentIdentity();
+          const lid = l.id; const done = acc && acc.progress && acc.progress[lid] && acc.progress[lid].doneTasks;
+          const allDone = done && Object.keys(done).length >= l.tasks.length;
+          const count = done ? Object.keys(done).length : 0;
+          const badge = allDone ? ' <span class="done-badge">✓</span>' : ` <span class="progress-badge">${count}/${l.tasks.length}</span>`;
+          btn.innerHTML = `${l.title}${badge}`;
+        }
+      }
+    });
+  });
 }
 
 function renderLesson(){
@@ -1789,7 +1735,10 @@ function updateGlobalProgressWidget(){
       const li = document.createElement('li');
       li.innerHTML = `${x.title} <span class="badge">${x.done}/${x.total}</span>`;
       li.style.cursor = 'pointer';
-      li.addEventListener('click', ()=> jumpToFirstUndone(x.idx));
+      li.addEventListener('click', ()=>{
+        const first = perLesson.find(x=> x.done < x.total);
+        if(first){ jumpToFirstUndone(first.idx); }
+      });
       ul.appendChild(li);
     });
   }
@@ -1918,6 +1867,8 @@ async function init(){
   setupNav();
   setupChat();
   setupLessons();
+  setupLessonSearch();
+  setupLessonTabs();
   setupPyodide();
   updateGlobalProgressWidget();
   setupLessonRunner();
