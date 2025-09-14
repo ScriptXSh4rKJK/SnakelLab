@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PyStart – Learn Python</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/i18next@23.10.1/dist/umd/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector@7.2.1/dist/umd/i18nextBrowserLanguageDetector.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend@2.6.2/i18nextHttpBackend.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <div class="brand">PyStart</div>
+        <nav>
+          <button data-section="lesson" class="active" data-i18n="nav.lesson">Lesson</button>
+          <button data-section="chat" data-i18n="nav.chat">Global Chat</button>
+          <button data-section="profile" data-i18n="nav.profile">Profile</button>
+          <button data-section="settings" data-i18n="nav.settings">Settings</button>
+        </nav>
+        <div id="sidebar-progress-card" class="sidebar-widget">
+          <div class="sw-title">Your progress</div>
+          <div class="sw-progress">
+            <div class="sw-progress-fill" style="width:0%"></div>
+          </div>
+          <div class="sw-progress-text"><span id="sw-done">0</span>/<span id="sw-total">0</span></div>
+          <button id="sw-continue" class="ghost small" style="margin-top:8px;width:100%">Continue</button>
+          <ul id="sw-next" class="sw-next"></ul>
+        </div>
+        <div class="lang">
+          <select id="lang-select"></select>
+        </div>
+        <div id="sidebar-profile-card" class="sidebar-profile-card">
+          <div class="spc-left">
+            <img id="spc-avatar" class="spc-avatar" alt="avatar" />
+            <div class="spc-names">
+              <div id="spc-display" class="spc-display">Guest</div>
+              <div id="spc-username" class="spc-username">guest</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section id="lesson" class="section active">
+          <div class="lesson-grid">
+            <aside class="lessons-list">
+              <div class="list-header">
+                <h2 data-i18n="ui.lessons">Lessons</h2>
+              </div>
+              <ul id="lessons"></ul>
+            </aside>
+
+            <div class="lesson-pane">
+              <div class="lesson-header">
+                <h1 id="lesson-title">Lesson</h1>
+                <div class="tabs">
+                  <button class="tab active" data-tab="theory" data-i18n="tabs.theory">Theory</button>
+                  <button class="tab" data-tab="practice" data-i18n="tabs.practice">Practice</button>
+                </div>
+              </div>
+
+              <div id="theory" class="tab-content active">
+                <div id="theory-body" class="card"></div>
+              </div>
+
+              <div id="practice" class="tab-content">
+                <div class="card">
+                  <div id="task-text" class="task-text"></div>
+                  <div class="editor">
+                    <textarea id="code" rows="10"></textarea>
+                    <div class="editor-actions">
+                      <button id="run" class="primary" data-i18n="practice.run">Run</button>
+                      <button id="check" class="success" data-i18n="practice.check">Check</button>
+                      <button id="reset" class="ghost" data-i18n="practice.reset">Reset</button>
+                      <button id="hint" class="ghost small" style="display:none">Hint</button>
+                      <button id="solution" class="ghost small" style="display:none">Solution</button>
+                    </div>
+                    <pre id="output" class="output"></pre>
+                  </div>
+                  <div class="practice-nav">
+                    <button id="prev-task" class="ghost">◀ Prev</button>
+                    <span id="task-progress" class="muted"></span>
+                    <button id="next-task" class="ghost">Next ▶</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="chat" class="section">
+          <h1 data-i18n="chat.title">Global Chat</h1>
+          <div id="chat-box" class="chat-box"></div>
+          <div class="chat-input">
+            <input id="chat-text" placeholder="Message" />
+            <button id="chat-send" class="primary" data-i18n="chat.send">Send</button>
+          </div>
+        </section>
+
+        <section id="profile" class="section">
+          <h1 data-i18n="profile.title">Profile</h1>
+          <div class="card">
+            <label data-i18n="profile.username">Username</label>
+            <input id="username" type="text" placeholder="username" data-title="Your login name" />
+            <label data-i18n="profile.display">Display name</label>
+            <input id="display" type="text" placeholder="display" data-title="Shown next to your avatar" />
+            <label data-i18n="profile.avatar">Avatar</label>
+            <input id="avatar" type="file" accept="image/*" data-title="Square images look best" />
+            <div class="row">
+              <button id="save-profile" class="primary" data-i18n="profile.save">Save profile</button>
+              <button id="add-account" class="ghost" data-i18n="profile.add">Add account</button>
+              <button id="export-progress" class="ghost small">Export</button>
+              <label class="ghost small" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                Import
+                <input id="import-progress" type="file" accept="application/json" style="display:none" />
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <h3 data-i18n="profile.accounts">Accounts</h3>
+            <div id="accounts"></div>
+            <button id="add-account" data-i18n="profile.add">Add account</button>
+            <p class="muted" data-i18n="profile.note">
+              You can register once per account slot. Accounts are local to this browser.
+            </p>
+          </div>
+        </section>
+
+        <section id="settings" class="section">
+          <h1 data-i18n="settings.title">Settings</h1>
+          <div class="card">
+            <label data-i18n="settings.theme">Theme</label>
+            <div class="row">
+              <select id="theme-select">
+                <option value="auto">Auto</option>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+                <option value="rainbow">Rainbow</option>
+                <option value="midnight">Midnight</option>
+                <option value="solarized">Solarized</option>
+                <option value="dracula">Dracula</option>
+                <option value="pastel">Pastel</option>
+              </select>
+              <input id="accent-color" type="color" title="Accent color" />
+              <button id="reset-theme" class="ghost small">Reset</button>
+              <label style="margin-left:auto"><input type="checkbox" id="rainbow-accent" /> Rainbow</label>
+            </div>
+          </div>
+          <div class="card">
+            <label>Theory details</label>
+            <div class="row">
+              <label><input type="checkbox" id="details-always-open" /> Always keep detailed breakdown open</label>
+            </div>
+          </div>
+          <div class="card">
+            <label>Background</label>
+            <div class="row">
+              <select id="bg-mode">
+                <option value="gradient1">Gradient 1</option>
+                <option value="gradient2">Gradient 2</option>
+                <option value="image">Image</option>
+              </select>
+              <input id="bg-image" type="file" accept="image/*" />
+              <button id="reset-bg" class="ghost small">Reset</button>
+            </div>
+          </div>
+          <div class="card">
+            <label>Fonts</label>
+            <div class="row">
+              <select id="font-size">
+                <option value="small">Small</option>
+                <option value="medium" selected>Medium</option>
+                <option value="large">Large</option>
+              </select>
+              <select id="font-family">
+                <option value="sans" selected>Sans</option>
+                <option value="serif">Serif</option>
+                <option value="mono">Monospace</option>
+              </select>
+              <label><input type="checkbox" id="ligatures" /> Ligatures (code)</label>
+              <button id="reset-fonts" class="ghost small">Reset</button>
+            </div>
+          </div>
+          <div class="card">
+            <label data-i18n="settings.anim">Animations</label>
+            <div class="row">
+              <select id="anim-intensity">
+                <option value="off">Off</option>
+                <option value="low">Low</option>
+                <option value="normal" selected>Normal</option>
+                <option value="max">Max</option>
+              </select>
+              <label><input type="checkbox" id="anim-enabled" checked /> <span data-i18n="settings.anim_enable">Enable background animations</span></label>
+              <button id="reset-anim" class="ghost small">Reset</button>
+            </div>
+          </div>
+          <div class="card">
+            <label>Sidebar</label>
+            <div class="row">
+              <select id="sidebar-pos">
+                <option value="left" selected>Left</option>
+                <option value="right">Right</option>
+              </select>
+              <label><input type="checkbox" id="sidebar-compact" /> Compact</label>
+              <label>Opacity <input id="sidebar-opacity" type="range" min="50" max="100" value="60" /></label>
+              <button id="reset-sidebar" class="ghost small">Reset</button>
+            </div>
+          </div>
+          <div class="card">
+            <label>Layout</label>
+            <div class="row">
+              <select id="layout-mode">
+                <option value="normal" selected>Normal</option>
+                <option value="wide">Wide</option>
+                <option value="focus">Focus</option>
+                <option value="split">Split screen</option>
+              </select>
+              <button id="reset-layout" class="ghost small">Reset</button>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="reset-all" class="primary">Reset All Settings</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

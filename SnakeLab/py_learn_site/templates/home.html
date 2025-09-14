@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SnakeLab — Учись Python на практике</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/static/styles.css" />
+    <style>
+      /* Simple landing layout on top of existing theme vars */
+      .home-wrap { min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+      .home-nav { display:flex; align-items:center; justify-content:space-between; padding:16px 24px; }
+      .home-brand { font-weight:800; font-size:24px; color:white; }
+      .home-links { display:flex; align-items:center; gap:16px; }
+      .home-links a { color: var(--text); text-decoration:none; opacity:.9 }
+      .home-links a:hover { opacity: 1 }
+
+      .hero { display:grid; place-items:center; padding: 64px 20px; }
+      .hero-inner { max-width: 980px; text-align: center; }
+      .badges { display:flex; gap:8px; justify-content:center; flex-wrap: wrap; margin-bottom: 16px; }
+      .badge { padding:6px 10px; border-radius:999px; background: rgba(255,255,255,.05); border:1px solid var(--border); font-size:12px; }
+      h1 { font-size: 48px; margin: 10px 0 10px; }
+      .lead { opacity:.9; font-size:18px; margin: 0 0 24px; }
+      .cta { display:flex; gap:12px; justify-content:center; }
+      .cta .primary { background: var(--accent); color:#0e0f1f; padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:700; }
+      .cta .ghost { border:1px solid var(--border); padding:12px 18px; border-radius:10px; text-decoration:none; color: var(--text); }
+
+      .features { max-width: 1100px; margin: 36px auto 64px; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; padding: 0 20px; }
+      .feature { border:1px solid var(--border); background: rgba(23,26,46,.7); border-radius:14px; padding:14px; }
+      .feature h3 { margin: 0 0 6px; font-size: 18px; }
+      .footer { padding:16px 24px; opacity:.7; font-size:13px; text-align:center; }
+
+      /* Mobile */
+      @media (max-width: 768px) {
+        .home-nav { flex-direction: column; gap: 12px; }
+        .features { grid-template-columns: 1fr; }
+        h1 { font-size: 32px; }
+        .cta { flex-direction: column; }
+        .cta a { width: 100%; max-width: 280px; margin: 0 auto; text-align: center; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="home-wrap">
+      <header class="home-nav">
+        <div class="home-brand">SnakeLab</div>
+        <nav class="home-links">
+          <a href="/app#lesson">Уроки</a>
+          <a href="/app#chat">Глобальный чат</a>
+          <a href="/app#profile">Профиль</a>
+        </nav>
+      </header>
+
+      <main class="hero">
+        <div class="hero-inner">
+          <div class="badges">
+            <span class="badge">Бесплатно и без регистрации</span>
+            <span class="badge">Работает в браузере</span>
+            <span class="badge">Сообщество</span>
+          </div>
+          <h1>Учись Python на практике</h1>
+          <p class="lead">Интерактивные уроки с мгновенной проверкой, запуск кода в браузере и дружелюбный чат. Ничего не ставить — просто открывай и пиши.</p>
+          <div class="cta">
+            <a class="primary" href="/app">Начать обучение</a>
+            <a class="ghost" href="/app#lesson">Посмотреть уроки</a>
+          </div>
+        </div>
+      </main>
+
+      <section class="features">
+        <div class="feature">
+          <h3>🎯 Сначала практика</h3>
+          <p>Каждая тема — это маленькие задачи с авто‑проверкой прямо во время ввода.</p>
+        </div>
+        <div class="feature">
+          <h3>💬 Глобальный чат</h3>
+          <p>Задавай вопросы и учись вместе с другими в реальном времени.</p>
+        </div>
+        <div class="feature">
+          <h3>📊 Прогресс</h3>
+          <p>Достижения сохраняются локально по аккаунту. Продолжай с того же места.</p>
+        </div>
+        <div class="feature">
+          <h3>🎨 Красивые темы</h3>
+          <p>Тёмная, светлая и цветные темы плюс свой акцент.</p>
+        </div>
+      </section>
+
+      <footer class="footer">© <span id="year"></span> SnakeLab</footer>
+    </div>
+
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
